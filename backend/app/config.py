@@ -4,7 +4,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:Welcome%402026@localhost:5433/chatbot"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:Welcome%402026@localhost:5532/chatbot"
 
     # Groq
     GROQ_API_KEY: str = ""

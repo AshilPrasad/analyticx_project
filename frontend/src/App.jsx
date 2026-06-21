@@ -31,7 +31,7 @@ export default function App() {
           fetchDocuments();
         } else {
           setApiStatus("degraded");
-          setDbStatusMessage("PostgreSQL is not running on port 5433. Start the database to enable uploads and Q&A.");
+          setDbStatusMessage("PostgreSQL is not running on port 5532. Start the database to enable uploads and Q&A.");
           setDocuments([]);
         }
       } catch {

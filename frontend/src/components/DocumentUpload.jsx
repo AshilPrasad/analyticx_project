@@ -71,7 +71,7 @@ export default function DocumentUpload({ documents, onRefresh, dbAvailable = tru
           <div className="db-unavailable-icon">🗄️</div>
           <p className="db-unavailable-title">Database not connected</p>
           <p className="db-unavailable-desc">
-            Start PostgreSQL (port 5433) and restart the backend to enable document uploads and Q&amp;A.
+            Start PostgreSQL (port 5532) and restart the backend to enable document uploads and Q&amp;A.
           </p>
           <code className="db-unavailable-cmd">docker compose up -d db</code>
         </div>
