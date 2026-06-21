@@ -51,8 +51,8 @@ export default function App() {
           <div className="logo">
             <span className="logo-icon">🧠</span>
             <div>
-              <h1 className="logo-title">DocMind AI</h1>
-              <p className="logo-sub">RAG-powered document Q&amp;A</p>
+            <h1 className="logo-title">analytix</h1>
+            <p className="logo-sub">RAG-powered document Q&amp;A</p>
             </div>
           </div>
           <div className="header-right">
@@ -86,7 +86,7 @@ export default function App() {
           </h2>
           <p className="hero-desc">
             Upload PDFs or text files, then ask questions in plain English.
-            DocMind retrieves the most relevant passages and generates precise answers.
+            analytix retrieves the most relevant passages and generates precise answers.
           </p>
 
           {/* Stats bar */}

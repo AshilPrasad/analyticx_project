@@ -2,27 +2,27 @@
 
 /* ── CSS Variables ─────────────────────────────────────────────────── */
 :root {
-  --bg-base:      #0d0f14;
-  --bg-card:      #13161e;
-  --bg-card2:     #1a1e2a;
-  --bg-input:     #1e2230;
-  --border:       #252a38;
-  --border-light: #2e3548;
+  --bg-base:      #f5f7fa;
+  --bg-card:      #ffffff;
+  --bg-card2:     #f3f5f9;
+  --bg-input:     #ffffff;
+  --border:       #e4e8ef;
+  --border-light: #d2d8e2;
 
   --accent:       #6c63ff;
-  --accent-glow:  rgba(108, 99, 255, 0.25);
-  --accent-hover: #7c74ff;
-  --accent2:      #00d4aa;
-  --danger:       #ff4d6d;
+  --accent-glow:  rgba(108, 99, 255, 0.18);
+  --accent-hover: #5b51f5;
+  --accent2:      #00a98f;
+  --danger:       #e23a59;
 
-  --text-primary:   #f0f2f8;
-  --text-secondary: #8892a4;
-  --text-muted:     #535d70;
+  --text-primary:   #1a1d26;
+  --text-secondary: #5a6472;
+  --text-muted:     #98a1b2;
 
   --radius:    12px;
   --radius-lg: 20px;
-  --shadow:    0 4px 24px rgba(0,0,0,0.4);
-  --shadow-lg: 0 8px 48px rgba(0,0,0,0.6);
+  --shadow:    0 4px 20px rgba(20,28,46,0.06);
+  --shadow-lg: 0 10px 40px rgba(20,28,46,0.10);
 
   --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -49,7 +49,7 @@ body {
 
 /* ── Header ────────────────────────────────────────────────────────── */
 .header {
-  background: rgba(13, 15, 20, 0.85);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -98,7 +98,7 @@ body {
 
 /* ── Hero ──────────────────────────────────────────────────────────── */
 .hero {
-  background: linear-gradient(180deg, #13152b 0%, var(--bg-base) 100%);
+  background: linear-gradient(180deg, #eef1fb 0%, var(--bg-base) 100%);
   border-bottom: 1px solid var(--border);
   padding: 48px 24px 40px;
 }
@@ -115,7 +115,7 @@ body {
   font-size: clamp(28px, 4vw, 40px);
   font-weight: 800;
   line-height: 1.2;
-  background: linear-gradient(135deg, #f0f2f8 0%, #8892a4 100%);
+  background: linear-gradient(135deg, #1a1d26 0%, #5a6472 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -304,7 +304,7 @@ body {
 }
 .db-unavailable-cmd {
   margin-top: 4px;
-  background: rgba(255,255,255,0.06);
+  background: rgba(20,28,46,0.06);
   padding: 4px 12px;
   border-radius: 6px;
   font-size: 12px;
@@ -508,7 +508,7 @@ body {
   line-height: 1.6;
 }
 .offline-banner code {
-  background: rgba(255,255,255,0.08);
+  background: rgba(20,28,46,0.06);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 12px;
@@ -527,7 +527,7 @@ body {
 .degraded-desc  { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
 .degraded-hint  { font-size: 13px; color: var(--text-muted); }
 .degraded-hint code, .degraded-banner code {
-  background: rgba(255,255,255,0.08);
+  background: rgba(20,28,46,0.06);
   padding: 2px 7px;
   border-radius: 4px;
   font-size: 12px;
