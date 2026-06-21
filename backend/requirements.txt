@@ -1,0 +1,20 @@
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+python-dotenv>=1.0.0
+pydantic-settings>=2.3.0
+pypdf>=4.2.0
+
+# ── LangChain RAG stack ────────────────────────────────────────────────────────
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-groq>=0.2.0
+langchain-huggingface>=0.1.0
+langchain-postgres>=0.0.12
+langchain-text-splitters>=0.3.0
+
+# ── Database ───────────────────────────────────────────────────────────────────
+psycopg[binary]>=3.1.0    # required by langchain-postgres
+asyncpg>=0.29.0           # async SQLAlchemy driver
+sqlalchemy>=2.0.30        # for document metadata table
+pgvector>=0.3.2           # pgvector SQLAlchemy type support
