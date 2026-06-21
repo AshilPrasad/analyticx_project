@@ -1,9 +1,9 @@
 """
-llm.py — LangChain ChatGroq: Llama 3 via Groq API (free tier).
+llm.py — LangChain ChatGroq: LLM via Groq API (free tier).
 
-Model: llama3-8b-8192
-  - Open-source Meta Llama 3, hosted on Groq's fast inference hardware
-  - Free tier: 14,400 requests/day, no credit card required
+Model: configurable via LLM_MODEL (default: openai/gpt-oss-20b)
+  - Hosted on Groq's fast inference hardware
+  - Free tier, no credit card required
   - temperature=0.2: answers are factual, not creative/random
 """
 
@@ -20,7 +20,7 @@ def get_llm() -> ChatGroq:
             "GROQ_API_KEY is not set. Get a free key at https://console.groq.com"
         )
     return ChatGroq(
-        model="llama3-8b-8192",
+        model=settings.LLM_MODEL,
         groq_api_key=settings.GROQ_API_KEY,
         temperature=0.2,
         max_tokens=1024,

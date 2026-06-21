@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.database import get_db_status, init_db
+from app.database import ensure_db_connected, get_db_status, init_db
 from app.routes import document_router, qa_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AI Q&A API",
-    description="RAG-powered Q&A: FastAPI · PostgreSQL/pgvector · sentence-transformers · Groq (Llama 3)",
+    description="RAG-powered Q&A: FastAPI · PostgreSQL/pgvector · Gemini embeddings · Groq (Llama 3)",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -54,6 +54,7 @@ async def root():
 
 @app.get("/health", tags=["Health"])
 async def health():
+    await ensure_db_connected()
     db = get_db_status()
     return {
         "status": "healthy" if db["connected"] else "degraded",

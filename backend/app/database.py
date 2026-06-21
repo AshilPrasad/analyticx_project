@@ -36,12 +36,20 @@ class IngestedDocument(Base):
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
 
 
+async def ensure_db_connected() -> bool:
+    """Retry DB initialisation if the database was offline at startup."""
+    if _db_connected:
+        return True
+    await init_db(raise_on_error=False)
+    return _db_connected
+
+
 async def get_db():
     """FastAPI dependency — yields an async DB session."""
-    if not _db_connected:
+    if not await ensure_db_connected():
         raise HTTPException(
             status_code=503,
-            detail=f"Database unavailable. {_db_error_message}",
+            detail="Database is not connected. Start PostgreSQL on port 5532 and try again.",
         )
 
     async with AsyncSessionLocal() as session:

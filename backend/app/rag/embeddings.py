@@ -1,21 +1,26 @@
 """
-embeddings.py — Converts text into vector numbers using LangChain + HuggingFace.
+embeddings.py — Converts text into vector numbers using Google Gemini.
 
-Model: sentence-transformers/all-MiniLM-L6-v2
-  - Runs 100% locally (no internet after first download, no API key)
-  - Produces 384-dimensional embeddings
-  - Loaded once at startup and cached in memory
+Model: models/gemini-embedding-001 (configurable via EMBEDDING_MODEL)
+  - Hosted by Google Gemini (free tier, requires GOOGLE_API_KEY)
+  - Output dimensionality configurable via EMBEDDING_DIM (768 / 1536 / 3072)
+  - No heavy local ML dependencies (no PyTorch)
 """
 
 from functools import lru_cache
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from app.config import settings
 
 
 @lru_cache(maxsize=1)
-def get_embeddings() -> HuggingFaceEmbeddings:
-    """Return a cached HuggingFace embeddings instance."""
-    return HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2",
-        model_kwargs={"device": "cpu"},
-        encode_kwargs={"normalize_embeddings": True},
+def get_embeddings() -> GoogleGenerativeAIEmbeddings:
+    """Return a cached Google Gemini embeddings instance."""
+    if not settings.GOOGLE_API_KEY:
+        raise ValueError(
+            "GOOGLE_API_KEY is not set. Get a free key at https://aistudio.google.com/app/apikey"
+        )
+    return GoogleGenerativeAIEmbeddings(
+        model=settings.EMBEDDING_MODEL,
+        google_api_key=settings.GOOGLE_API_KEY,
+        output_dimensionality=settings.EMBEDDING_DIM,
     )

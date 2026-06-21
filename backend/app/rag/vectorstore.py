@@ -75,9 +75,14 @@ async def delete_by_source(document_name: str) -> int:
     def _delete():
         with psycopg.connect(conn_str) as conn:
             with conn.cursor() as cur:
-                cur.execute(query, (COLLECTION_NAME, document_name))
-                conn.commit()
-                return cur.rowcount
+                try:
+                    cur.execute(query, (COLLECTION_NAME, document_name))
+                    conn.commit()
+                    return cur.rowcount
+                except psycopg.errors.UndefinedTable:
+                    # LangChain's tables don't exist yet (no document ever ingested).
+                    conn.rollback()
+                    return 0
 
     count = await asyncio.to_thread(_delete)
     logger.info(f"Deleted {count} chunks for '{document_name}' from vectorstore.")

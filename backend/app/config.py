@@ -6,8 +6,14 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:Welcome%402026@localhost:5532/chatbot"
 
-    # Groq
+    # Groq (LLM — answer generation)
     GROQ_API_KEY: str = ""
+    LLM_MODEL: str = "openai/gpt-oss-20b"
+
+    # Google Gemini (embeddings — document vectors)
+    GOOGLE_API_KEY: str = ""
+    EMBEDDING_MODEL: str = "models/gemini-embedding-001"
+    EMBEDDING_DIM: int = 768  # gemini-embedding-001 supports 768 / 1536 / 3072
 
     # App
     APP_ENV: str = "development"

@@ -80,7 +80,7 @@ export default function App() {
       {/* ── Hero Banner ── */}
       <div className="hero">
         <div className="hero-inner">
-          <p className="hero-tag">Powered by Llama 3 · pgvector · sentence-transformers</p>
+          <p className="hero-tag">Powered by Llama 3 · pgvector · Gemini embeddings</p>
           <h2 className="hero-headline">
             Ask anything about your documents
           </h2>
@@ -104,7 +104,7 @@ export default function App() {
             </div>
             <div className="stat-divider" />
             <div className="stat">
-              <span className="stat-num">384</span>
+              <span className="stat-num">768</span>
               <span className="stat-label">Embedding Dims</span>
             </div>
             <div className="stat-divider" />
@@ -165,7 +165,7 @@ export default function App() {
       {/* ── Footer ── */}
       <footer className="footer">
         <p>
-          Built with FastAPI · PostgreSQL · pgvector · sentence-transformers ·
+          Built with FastAPI · PostgreSQL · pgvector · Gemini embeddings ·
           Groq (Llama 3) · React
         </p>
       </footer>

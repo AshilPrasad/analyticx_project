@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from app.config import settings
 from app.database import IngestedDocument, get_db
 from app.rag.chain import run_rag_chain
 from app.rag.vectorstore import add_documents, delete_by_source, search_with_scores
@@ -53,7 +54,7 @@ class QAResponse(BaseModel):
     question: str
     answer: str
     sources: list[SourceChunk]
-    model: str = "llama3-8b-8192"
+    model: str = settings.LLM_MODEL
 
 
 # ── Text splitter (LangChain) ─────────────────────────────────────────────────
