@@ -1,35 +1,18 @@
 """
-database.py — Async DB connection + application tables.
-
-LangChain PGVector manages its own tables (langchain_pg_collection,
-langchain_pg_embedding) for embeddings. This file defines:
-  - IngestedDocument : tracks uploaded documents (knowledge base)
-  - ChatSession      : a ChatGPT-style conversation
-  - ChatMessage      : individual user/assistant messages in a session
-
-Chat sessions older than CHAT_RETENTION_DAYS are purged automatically.
+db/session.py — Async engine, session factory, connection lifecycle, and the
+chat-session retention purge.
 """
 
 import logging
-
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
-from sqlalchemy import (
-    Column,
-    DateTime,
-    ForeignKey,
-    Integer,
-    String,
-    Text,
-    delete,
-    text,
-)
+from sqlalchemy import delete, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase, relationship
-from sqlalchemy.sql import func
 
-from app.config import settings
+from app.core.config import settings
+from app.db.base import Base
+from app.db.models import ChatSession  # noqa: F401 — also registers all models on Base
 
 logger = logging.getLogger(__name__)
 
@@ -39,70 +22,9 @@ engine = create_async_engine(
     pool_pre_ping=True,   # transparently recover from DB restarts / dropped connections
 )
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
 _db_connected = False
 _db_error_message = "Database has not been initialised yet."
-
-
-class Base(DeclarativeBase):
-    pass
-
-
-class User(Base):
-    """An application user (authentication)."""
-    __tablename__ = "users"
-
-    id              = Column(Integer, primary_key=True)
-    email           = Column(String(255), nullable=False, unique=True, index=True)
-    name            = Column(String(120), nullable=True)
-    hashed_password = Column(String(255), nullable=False)
-    created_at      = Column(DateTime(timezone=True), server_default=func.now())
-
-
-class IngestedDocument(Base):
-    """Tracks documents uploaded to the knowledge base (metadata only, no embeddings)."""
-    __tablename__ = "ingested_documents"
-
-    id            = Column(Integer, primary_key=True)
-    user_id       = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
-    document_name = Column(String(512), nullable=False)
-    chunk_count   = Column(Integer, nullable=False, default=0)
-    created_at    = Column(DateTime(timezone=True), server_default=func.now())
-
-
-class ChatSession(Base):
-    """A ChatGPT-style conversation thread."""
-    __tablename__ = "chat_sessions"
-
-    id         = Column(Integer, primary_key=True)
-    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
-    title      = Column(String(255), nullable=False, default="New chat")
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-    messages = relationship(
-        "ChatMessage",
-        back_populates="session",
-        cascade="all, delete-orphan",
-        order_by="ChatMessage.id",
-    )
-
-
-class ChatMessage(Base):
-    """A single message (user question or assistant answer) within a session."""
-    __tablename__ = "chat_messages"
-
-    id         = Column(Integer, primary_key=True)
-    session_id = Column(
-        Integer,
-        ForeignKey("chat_sessions.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    role       = Column(String(16), nullable=False)  # 'user' | 'assistant'
-    content    = Column(Text, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    session = relationship("ChatSession", back_populates="messages")
 
 
 async def ensure_db_connected() -> bool:

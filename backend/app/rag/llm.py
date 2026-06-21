@@ -9,7 +9,7 @@ Model: configurable via LLM_MODEL (default: gemini-2.5-flash)
 
 from functools import lru_cache
 from langchain_google_genai import ChatGoogleGenerativeAI
-from app.config import settings
+from app.core.config import settings
 
 
 @lru_cache(maxsize=1)

@@ -9,7 +9,7 @@ Model: models/gemini-embedding-001 (configurable via EMBEDDING_MODEL)
 
 from functools import lru_cache
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from app.config import settings
+from app.core.config import settings
 
 
 @lru_cache(maxsize=1)

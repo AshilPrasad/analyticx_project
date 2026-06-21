@@ -1,70 +1,37 @@
 """
-chat_routes.py — ChatGPT-style conversation endpoints.
+api/routes/chat.py — ChatGPT-style conversation endpoints.
 
 /api/chat/sessions                  — create / list conversations
 /api/chat/sessions/{id}             — fetch full conversation / delete it
 /api/chat/sessions/{id}/messages    — ask a question (RAG) within a conversation
 
 Chat history is persisted in PostgreSQL and auto-purged after the configured
-retention window (see database.purge_expired_sessions).
+retention window (see db.session.purge_expired_sessions).
 """
 
 import logging
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.auth import get_current_user
-from app.database import ChatMessage, ChatSession, User, get_db
+from app.core.security import get_current_user
+from app.db.models import ChatMessage, ChatSession, User
+from app.db.session import get_db
 from app.rag.chain import run_rag_chain
+from app.schemas.chat import (
+    ChatAskRequest,
+    ChatAskResponse,
+    MessageItem,
+    SessionDetail,
+    SessionItem,
+)
 
 logger = logging.getLogger(__name__)
 
-chat_router = APIRouter(prefix="/api/chat", tags=["Chat"])
+router = APIRouter(prefix="/api/chat", tags=["Chat"])
 
-
-# ── Schemas ───────────────────────────────────────────────────────────────────
-
-class SessionItem(BaseModel):
-    id: int
-    title: str
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class MessageItem(BaseModel):
-    id: int
-    role: str
-    content: str
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class SessionDetail(SessionItem):
-    messages: list[MessageItem] = []
-
-
-class ChatAskRequest(BaseModel):
-    question: str = Field(..., min_length=1, max_length=2000)
-    top_k: int = Field(default=5, ge=1, le=20)
-
-
-class ChatAskResponse(BaseModel):
-    session_id: int
-    title: str
-    message: MessageItem
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _make_title(text: str) -> str:
     """Derive a short conversation title from the first user message."""
@@ -79,9 +46,7 @@ async def _get_owned_session_or_404(session_id: int, user_id: int, db: AsyncSess
     return session
 
 
-# ── Session routes ────────────────────────────────────────────────────────────
-
-@chat_router.post("/sessions", response_model=SessionItem, status_code=201)
+@router.post("/sessions", response_model=SessionItem, status_code=201)
 async def create_session(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -94,7 +59,7 @@ async def create_session(
     return session
 
 
-@chat_router.get("/sessions", response_model=list[SessionItem])
+@router.get("/sessions", response_model=list[SessionItem])
 async def list_sessions(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -110,7 +75,7 @@ async def list_sessions(
     return rows
 
 
-@chat_router.get("/sessions/{session_id}", response_model=SessionDetail)
+@router.get("/sessions/{session_id}", response_model=SessionDetail)
 async def get_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
@@ -128,7 +93,7 @@ async def get_session(
     return session
 
 
-@chat_router.delete("/sessions/{session_id}", status_code=204)
+@router.delete("/sessions/{session_id}", status_code=204)
 async def delete_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
@@ -146,9 +111,7 @@ async def delete_session(
         raise HTTPException(status_code=404, detail="Chat session not found.")
 
 
-# ── Message route (RAG) ───────────────────────────────────────────────────────
-
-@chat_router.post("/sessions/{session_id}/messages", response_model=ChatAskResponse)
+@router.post("/sessions/{session_id}/messages", response_model=ChatAskResponse)
 async def post_message(
     session_id: int,
     req: ChatAskRequest,

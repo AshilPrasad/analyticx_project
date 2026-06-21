@@ -19,7 +19,7 @@ from functools import lru_cache
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
 
-from app.config import settings
+from app.core.config import settings
 from app.rag.embeddings import get_embeddings
 
 logger = logging.getLogger(__name__)

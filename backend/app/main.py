@@ -1,8 +1,12 @@
 """
-main.py — FastAPI app factory. Wires everything together.
+main.py — FastAPI application factory.
 
-All routes are defined in routes.py.
-All RAG logic lives in the rag/ folder.
+Layered layout:
+  core/     — settings + security (hashing, JWT)
+  db/       — engine, models, session lifecycle
+  schemas/  — pydantic request/response models
+  api/      — route modules, aggregated in api/router.py
+  rag/      — retrieval-augmented-generation pipeline (Gemini + pgvector)
 """
 
 import asyncio
@@ -11,14 +15,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
-from app.config import settings
-from app.auth_routes import auth_router
-from app.chat_routes import chat_router
-from app.config_routes import config_router
-from app.database import ensure_db_connected, get_db_status, init_db, purge_expired_sessions
-from app.routes import document_router, qa_router
+from app.api.router import api_router
+from app.core.config import settings
+from app.db.session import init_db, purge_expired_sessions
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
@@ -39,10 +39,9 @@ async def _purge_loop():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Run database setup once when the server starts."""
+    """Initialise the database and start the retention purge on startup."""
     # In development we allow API startup without DB so local UI/docs can still load.
     await init_db(raise_on_error=settings.APP_ENV.lower() != "development")
-    # Purge once at startup, then on a recurring schedule.
     await purge_expired_sessions()
     purge_task = asyncio.create_task(_purge_loop())
     try:
@@ -52,7 +51,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="AI Q&A API",
+    title="analytix API",
     description="RAG-powered Q&A: FastAPI · PostgreSQL/pgvector · Google Gemini (LLM + embeddings)",
     version="1.0.0",
     lifespan=lifespan,
@@ -66,25 +65,4 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register routes
-app.include_router(auth_router)
-app.include_router(document_router)
-app.include_router(qa_router)
-app.include_router(chat_router)
-app.include_router(config_router)
-
-
-@app.get("/", tags=["Health"])
-async def root():
-    return {"message": "AI Q&A API is running", "docs": "/docs"}
-
-
-@app.get("/health", tags=["Health"])
-async def health():
-    await ensure_db_connected()
-    db = get_db_status()
-    return {
-        "status": "healthy" if db["connected"] else "degraded",
-        "version": "1.0.0",
-        "database": db,
-    }
+app.include_router(api_router)

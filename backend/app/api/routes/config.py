@@ -1,5 +1,5 @@
 """
-config_routes.py — Runtime configuration endpoints.
+api/routes/config.py — Runtime configuration endpoints.
 
 Lets the user set their Google Gemini API key from the UI instead of editing
 the .env file. The key is validated with a tiny embedding call, applied at
@@ -12,28 +12,19 @@ import logging
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
 
-from app.config import settings
+from app.core.config import settings
 from app.rag.embeddings import get_embeddings
 from app.rag.llm import get_llm
 from app.rag.vectorstore import get_vectorstore
+from app.schemas.config import ConfigStatus, GeminiKeyRequest
 
 logger = logging.getLogger(__name__)
 
-config_router = APIRouter(prefix="/api/config", tags=["Config"])
+router = APIRouter(prefix="/api/config", tags=["Config"])
 
-ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
-
-
-class GeminiKeyRequest(BaseModel):
-    api_key: str = Field(..., min_length=10, max_length=400)
-
-
-class ConfigStatus(BaseModel):
-    gemini_configured: bool
-    llm_model: str
-    embedding_model: str
+# backend/.env — three levels up: routes/ -> api/ -> app/ -> backend/
+ENV_PATH = Path(__file__).resolve().parents[3] / ".env"
 
 
 def _clear_caches() -> None:
@@ -61,7 +52,7 @@ def _persist_env(key: str) -> None:
         logger.warning("Could not persist GOOGLE_API_KEY to .env (runtime value still applied).")
 
 
-@config_router.get("/", response_model=ConfigStatus)
+@router.get("/", response_model=ConfigStatus)
 async def get_config():
     """Report whether the Gemini key is configured (never returns the key itself)."""
     return ConfigStatus(
@@ -71,7 +62,7 @@ async def get_config():
     )
 
 
-@config_router.post("/gemini-key", response_model=ConfigStatus)
+@router.post("/gemini-key", response_model=ConfigStatus)
 async def set_gemini_key(req: GeminiKeyRequest):
     """Validate and apply a Gemini API key at runtime, then persist it."""
     key = req.api_key.strip()

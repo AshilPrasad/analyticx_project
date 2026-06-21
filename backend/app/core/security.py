@@ -1,5 +1,5 @@
 """
-auth.py — Authentication helpers: password hashing, JWT, current-user dependency.
+core/security.py — Authentication helpers: password hashing, JWT, current-user dependency.
 """
 
 import logging
@@ -12,8 +12,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
-from app.database import User, get_db
+from app.core.config import settings
+from app.db.models import User
+from app.db.session import get_db
 
 logger = logging.getLogger(__name__)
 
