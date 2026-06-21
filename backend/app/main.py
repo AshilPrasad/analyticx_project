@@ -1,14 +1,3 @@
-"""
-main.py — FastAPI application factory.
-
-Layered layout:
-  core/     — settings + security (hashing, JWT)
-  db/       — engine, models, session lifecycle
-  schemas/  — pydantic request/response models
-  api/      — route modules, aggregated in api/router.py
-  rag/      — retrieval-augmented-generation pipeline (Gemini + pgvector)
-"""
-
 import asyncio
 import logging
 from contextlib import asynccontextmanager

@@ -1,14 +1,3 @@
-"""
-run.py — Start the FastAPI server with Uvicorn.
-
-Usage:
-    python run.py
-    python run.py --port 8080
-
-This is the entry point for running the app locally.
-In production, the platform (Render/Railway) runs uvicorn directly.
-"""
-
 import os
 
 import uvicorn

@@ -1,7 +1,7 @@
 """
 llm.py — LangChain ChatGoogleGenerativeAI: LLM via Google Gemini API (free tier).
 
-Model: configurable via LLM_MODEL (default: gemini-2.5-flash)
+Model: configurable via LLM_MODEL (default: gemini-2.5-flash-lite)
   - Hosted by Google Gemini (free tier, requires GOOGLE_API_KEY)
   - Same API key as embeddings — single provider for the whole RAG stack
   - temperature=0.2: answers are factual, not creative/random

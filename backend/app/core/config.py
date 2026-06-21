@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     # Google Gemini (LLM + embeddings — single provider for the whole RAG stack)
     GOOGLE_API_KEY: str = ""
-    LLM_MODEL: str = "gemini-2.5-flash"
+    LLM_MODEL: str = "gemini-2.5-flash-lite"
     EMBEDDING_MODEL: str = "models/gemini-embedding-001"
     EMBEDDING_DIM: int = 768  # gemini-embedding-001 supports 768 / 1536 / 3072
 
