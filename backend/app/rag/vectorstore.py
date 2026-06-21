@@ -48,19 +48,32 @@ async def add_documents(docs: list[Document]) -> list[str]:
     return ids
 
 
-async def search_with_scores(query: str, top_k: int = 5) -> list[tuple[Document, float]]:
+def user_filter(user_id: int | None) -> dict | None:
+    """Build a PGVector metadata filter scoping results to one user."""
+    if user_id is None:
+        return None
+    return {"user_id": {"$eq": str(user_id)}}
+
+
+async def search_with_scores(
+    query: str, top_k: int = 5, user_id: int | None = None
+) -> list[tuple[Document, float]]:
     """
-    Find top-K chunks most similar to the query.
+    Find top-K chunks most similar to the query, scoped to the given user.
     Returns list of (Document, similarity_score) — higher score = more relevant.
     """
     store = get_vectorstore()
-    return await asyncio.to_thread(store.similarity_search_with_relevance_scores, query, k=top_k)
+    flt = user_filter(user_id)
+    return await asyncio.to_thread(
+        lambda: store.similarity_search_with_relevance_scores(query, k=top_k, filter=flt)
+    )
 
 
-async def delete_by_source(document_name: str) -> int:
+async def delete_by_source(document_name: str, user_id: int | None = None) -> int:
     """
-    Delete all chunks for a document from LangChain's pgvector table.
-    Uses direct psycopg SQL since LangChain has no built-in delete-by-metadata.
+    Delete all chunks for a document from LangChain's pgvector table, scoped to
+    the given user. Uses direct psycopg SQL since LangChain has no built-in
+    delete-by-metadata.
 
     Returns number of deleted rows.
     """
@@ -71,12 +84,15 @@ async def delete_by_source(document_name: str) -> int:
             SELECT uuid FROM langchain_pg_collection WHERE name = %s
         )
         AND cmetadata->>'source' = %s
+        AND (%s::text IS NULL OR cmetadata->>'user_id' = %s::text)
     """
+    uid = None if user_id is None else str(user_id)
+
     def _delete():
         with psycopg.connect(conn_str) as conn:
             with conn.cursor() as cur:
                 try:
-                    cur.execute(query, (COLLECTION_NAME, document_name))
+                    cur.execute(query, (COLLECTION_NAME, document_name, uid, uid))
                     conn.commit()
                     return cur.rowcount
                 except psycopg.errors.UndefinedTable:
@@ -85,5 +101,5 @@ async def delete_by_source(document_name: str) -> int:
                     return 0
 
     count = await asyncio.to_thread(_delete)
-    logger.info(f"Deleted {count} chunks for '{document_name}' from vectorstore.")
+    logger.info(f"Deleted {count} chunks for '{document_name}' (user={user_id}).")
     return count

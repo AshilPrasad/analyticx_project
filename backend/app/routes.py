@@ -15,8 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from app.auth import get_current_user
 from app.config import settings
-from app.database import IngestedDocument, get_db
+from app.database import IngestedDocument, User, get_db
 from app.rag.chain import run_rag_chain
 from app.rag.vectorstore import add_documents, delete_by_source, search_with_scores
 
@@ -89,40 +90,47 @@ async def _extract_text(file: UploadFile) -> str:
 async def ingest_document(
     file: UploadFile = File(..., description="Upload a .txt or .pdf file"),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Upload a document to the knowledge base.
+    Upload a document to the current user's knowledge base.
 
     Pipeline:
       1. Extract text from .txt / .pdf
       2. Split into chunks (LangChain RecursiveCharacterTextSplitter)
-      3. Embed + store chunks in PGVector (LangChain)
+      3. Embed + store chunks in PGVector (tagged with the user's id)
       4. Save document metadata to PostgreSQL
     """
+    uid = current_user.id
     name = file.filename or "unnamed"
     raw  = await _extract_text(file)
 
     if not raw.strip():
         raise HTTPException(status_code=422, detail="Document appears to be empty.")
 
-    # Delete any existing version of this document (upsert behaviour)
-    await delete_by_source(name)
-    await db.execute(delete(IngestedDocument).where(IngestedDocument.document_name == name))
+    # Delete any existing version of this document for this user (upsert behaviour)
+    await delete_by_source(name, user_id=uid)
+    await db.execute(
+        delete(IngestedDocument).where(
+            IngestedDocument.document_name == name,
+            IngestedDocument.user_id == uid,
+        )
+    )
 
-    # Split with LangChain text splitter
+    # Split with LangChain text splitter (tag each chunk with the owner)
     lc_docs = _splitter.create_documents(
         texts=[raw],
-        metadatas=[{"source": name}],
+        metadatas=[{"source": name, "user_id": str(uid)}],
     )
 
     # Store in PGVector (LangChain manages embeddings + table)
     await add_documents(lc_docs)
 
     # Save metadata to our tracking table
-    db.add(IngestedDocument(document_name=name, chunk_count=len(lc_docs)))
+    db.add(IngestedDocument(user_id=uid, document_name=name, chunk_count=len(lc_docs)))
     await db.commit()
 
-    logger.info(f"Ingested '{name}' -> {len(lc_docs)} chunks")
+    logger.info(f"Ingested '{name}' -> {len(lc_docs)} chunks (user={uid})")
     return IngestResponse(
         message="Ingested successfully.",
         document_name=name,
@@ -131,9 +139,16 @@ async def ingest_document(
 
 
 @document_router.get("/", response_model=list[DocumentItem])
-async def list_documents(db: AsyncSession = Depends(get_db)):
-    """List all documents currently in the knowledge base."""
-    rows = (await db.execute(select(IngestedDocument))).scalars().all()
+async def list_documents(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List documents in the current user's knowledge base."""
+    rows = (
+        await db.execute(
+            select(IngestedDocument).where(IngestedDocument.user_id == current_user.id)
+        )
+    ).scalars().all()
     return [
         DocumentItem(document_name=r.document_name, chunk_count=r.chunk_count)
         for r in rows
@@ -141,14 +156,20 @@ async def list_documents(db: AsyncSession = Depends(get_db)):
 
 
 @document_router.delete("/{document_name}", status_code=204)
-async def delete_document(document_name: str, db: AsyncSession = Depends(get_db)):
-    """Remove a document and all its chunks from the knowledge base."""
-    # Delete from LangChain PGVector table
-    deleted = await delete_by_source(document_name)
+async def delete_document(
+    document_name: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Remove a document and all its chunks from the current user's knowledge base."""
+    uid = current_user.id
+    deleted = await delete_by_source(document_name, user_id=uid)
 
-    # Delete from metadata table
     result = await db.execute(
-        delete(IngestedDocument).where(IngestedDocument.document_name == document_name)
+        delete(IngestedDocument).where(
+            IngestedDocument.document_name == document_name,
+            IngestedDocument.user_id == uid,
+        )
     )
     await db.commit()
 
@@ -159,22 +180,27 @@ async def delete_document(document_name: str, db: AsyncSession = Depends(get_db)
 # ── Q&A route (LangChain RAG chain) ──────────────────────────────────────────
 
 @qa_router.post("/", response_model=QAResponse)
-async def answer_question(req: QARequest, db: AsyncSession = Depends(get_db)):
+async def answer_question(
+    req: QARequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """
-    Answer a question using the LangChain LCEL RAG chain:
+    Answer a question using the LangChain LCEL RAG chain (scoped to the user):
 
       Step 1 — Embed question + retrieve top-K chunks  (rag/vectorstore.py)
       Step 2 — Inject chunks into prompt template       (rag/chain.py)
-      Step 3 — Generate answer via Llama 3 on Groq      (rag/llm.py)
+      Step 3 — Generate answer via Gemini                (rag/llm.py)
     """
+    uid = current_user.id
     # Run the LCEL RAG chain (returns plain answer string)
     try:
-        answer = await run_rag_chain(req.question, top_k=req.top_k)
+        answer = await run_rag_chain(req.question, top_k=req.top_k, user_id=uid)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 
     # Separately fetch source chunks with similarity scores for attribution
-    docs_with_scores = await search_with_scores(req.question, top_k=req.top_k)
+    docs_with_scores = await search_with_scores(req.question, top_k=req.top_k, user_id=uid)
 
     if not docs_with_scores:
         raise HTTPException(

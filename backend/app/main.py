@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import settings
+from app.auth_routes import auth_router
 from app.chat_routes import chat_router
 from app.config_routes import config_router
 from app.database import ensure_db_connected, get_db_status, init_db, purge_expired_sessions
@@ -66,6 +67,7 @@ app.add_middleware(
 )
 
 # Register routes
+app.include_router(auth_router)
 app.include_router(document_router)
 app.include_router(qa_router)
 app.include_router(chat_router)

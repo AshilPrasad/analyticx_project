@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     # Chat history retention — sessions older than this are auto-deleted
     CHAT_RETENTION_DAYS: int = 90
 
+    # Authentication (JWT)
+    JWT_SECRET: str = "change-me-in-production-please-use-a-long-random-secret"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]

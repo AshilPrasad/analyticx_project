@@ -18,7 +18,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.database import ChatMessage, ChatSession, get_db
+from app.auth import get_current_user
+from app.database import ChatMessage, ChatSession, User, get_db
 from app.rag.chain import run_rag_chain
 
 logger = logging.getLogger(__name__)
@@ -71,9 +72,9 @@ def _make_title(text: str) -> str:
     return (clean[:48] + "…") if len(clean) > 48 else (clean or "New chat")
 
 
-async def _get_session_or_404(session_id: int, db: AsyncSession) -> ChatSession:
+async def _get_owned_session_or_404(session_id: int, user_id: int, db: AsyncSession) -> ChatSession:
     session = await db.get(ChatSession, session_id)
-    if session is None:
+    if session is None or session.user_id != user_id:
         raise HTTPException(status_code=404, detail="Chat session not found.")
     return session
 
@@ -81,9 +82,12 @@ async def _get_session_or_404(session_id: int, db: AsyncSession) -> ChatSession:
 # ── Session routes ────────────────────────────────────────────────────────────
 
 @chat_router.post("/sessions", response_model=SessionItem, status_code=201)
-async def create_session(db: AsyncSession = Depends(get_db)):
-    """Create a new (empty) conversation."""
-    session = ChatSession(title="New chat")
+async def create_session(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create a new (empty) conversation for the current user."""
+    session = ChatSession(title="New chat", user_id=current_user.id)
     db.add(session)
     await db.commit()
     await db.refresh(session)
@@ -91,20 +95,31 @@ async def create_session(db: AsyncSession = Depends(get_db)):
 
 
 @chat_router.get("/sessions", response_model=list[SessionItem])
-async def list_sessions(db: AsyncSession = Depends(get_db)):
-    """List all conversations, most recently updated first."""
+async def list_sessions(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """List the current user's conversations, most recently updated first."""
     rows = (
-        await db.execute(select(ChatSession).order_by(ChatSession.updated_at.desc()))
+        await db.execute(
+            select(ChatSession)
+            .where(ChatSession.user_id == current_user.id)
+            .order_by(ChatSession.updated_at.desc())
+        )
     ).scalars().all()
     return rows
 
 
 @chat_router.get("/sessions/{session_id}", response_model=SessionDetail)
-async def get_session(session_id: int, db: AsyncSession = Depends(get_db)):
-    """Fetch a conversation with all of its messages."""
+async def get_session(
+    session_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Fetch one of the current user's conversations with all of its messages."""
     result = await db.execute(
         select(ChatSession)
-        .where(ChatSession.id == session_id)
+        .where(ChatSession.id == session_id, ChatSession.user_id == current_user.id)
         .options(selectinload(ChatSession.messages))
     )
     session = result.scalar_one_or_none()
@@ -114,9 +129,18 @@ async def get_session(session_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @chat_router.delete("/sessions/{session_id}", status_code=204)
-async def delete_session(session_id: int, db: AsyncSession = Depends(get_db)):
-    """Delete a conversation and all of its messages."""
-    result = await db.execute(delete(ChatSession).where(ChatSession.id == session_id))
+async def delete_session(
+    session_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete one of the current user's conversations and all of its messages."""
+    result = await db.execute(
+        delete(ChatSession).where(
+            ChatSession.id == session_id,
+            ChatSession.user_id == current_user.id,
+        )
+    )
     await db.commit()
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Chat session not found.")
@@ -129,10 +153,11 @@ async def post_message(
     session_id: int,
     req: ChatAskRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Ask a question within a conversation. Persists both the user message and
     the RAG-generated assistant answer, then returns the assistant message."""
-    session = await _get_session_or_404(session_id, db)
+    session = await _get_owned_session_or_404(session_id, current_user.id, db)
 
     # Persist the user's message
     user_msg = ChatMessage(session_id=session.id, role="user", content=req.question)
@@ -144,9 +169,9 @@ async def post_message(
 
     await db.commit()
 
-    # Generate the answer via the RAG chain
+    # Generate the answer via the RAG chain (scoped to this user's documents)
     try:
-        answer = await run_rag_chain(req.question, top_k=req.top_k)
+        answer = await run_rag_chain(req.question, top_k=req.top_k, user_id=current_user.id)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 

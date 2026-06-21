@@ -33,7 +33,11 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-engine = create_async_engine(settings.DATABASE_URL, echo=False)
+engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,   # transparently recover from DB restarts / dropped connections
+)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 _db_connected = False
 _db_error_message = "Database has not been initialised yet."
@@ -43,12 +47,24 @@ class Base(DeclarativeBase):
     pass
 
 
+class User(Base):
+    """An application user (authentication)."""
+    __tablename__ = "users"
+
+    id              = Column(Integer, primary_key=True)
+    email           = Column(String(255), nullable=False, unique=True, index=True)
+    name            = Column(String(120), nullable=True)
+    hashed_password = Column(String(255), nullable=False)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class IngestedDocument(Base):
     """Tracks documents uploaded to the knowledge base (metadata only, no embeddings)."""
     __tablename__ = "ingested_documents"
 
     id            = Column(Integer, primary_key=True)
-    document_name = Column(String(512), nullable=False, unique=True)
+    user_id       = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    document_name = Column(String(512), nullable=False)
     chunk_count   = Column(Integer, nullable=False, default=0)
     created_at    = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -58,6 +74,7 @@ class ChatSession(Base):
     __tablename__ = "chat_sessions"
 
     id         = Column(Integer, primary_key=True)
+    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     title      = Column(String(255), nullable=False, default="New chat")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -128,6 +145,16 @@ async def init_db(*, raise_on_error: bool = True):
         async with engine.begin() as conn:
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
             await conn.run_sync(Base.metadata.create_all)
+            # Idempotent migrations for pre-existing tables (added when auth was introduced)
+            await conn.execute(text(
+                "ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS user_id INTEGER"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE ingested_documents ADD COLUMN IF NOT EXISTS user_id INTEGER"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE ingested_documents DROP CONSTRAINT IF EXISTS ingested_documents_document_name_key"
+            ))
         _db_connected = True
         _db_error_message = "connected"
         logger.info("Database initialised.")

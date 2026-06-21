@@ -34,7 +34,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 
 from app.rag.llm import get_llm
-from app.rag.vectorstore import get_vectorstore
+from app.rag.vectorstore import get_vectorstore, user_filter
 
 logger = logging.getLogger(__name__)
 
@@ -72,9 +72,9 @@ def _format_docs(docs: list[Document]) -> str:
 
 # ── RAG chain builder ─────────────────────────────────────────────────────────
 
-def build_rag_chain(top_k: int = 5):
+def build_rag_chain(top_k: int = 5, user_id: int | None = None):
     """
-    Build and return a LangChain LCEL RAG chain.
+    Build and return a LangChain LCEL RAG chain, scoped to one user's documents.
 
     LCEL chain (read left to right with | pipe operator):
 
@@ -85,13 +85,19 @@ def build_rag_chain(top_k: int = 5):
 
     Args:
         top_k: Number of document chunks to retrieve for context.
+        user_id: Restrict retrieval to this user's documents.
 
     Returns:
         A Runnable that accepts a question string and returns an answer string.
     """
+    search_kwargs = {"k": top_k}
+    flt = user_filter(user_id)
+    if flt is not None:
+        search_kwargs["filter"] = flt
+
     retriever = get_vectorstore().as_retriever(
         search_type="similarity",
-        search_kwargs={"k": top_k},
+        search_kwargs=search_kwargs,
     )
 
     chain = (
@@ -104,19 +110,20 @@ def build_rag_chain(top_k: int = 5):
     return chain
 
 
-async def run_rag_chain(question: str, top_k: int = 5) -> str:
+async def run_rag_chain(question: str, top_k: int = 5, user_id: int | None = None) -> str:
     """
-    Run the RAG chain asynchronously.
+    Run the RAG chain asynchronously, scoped to one user's documents.
     LangChain's sync chain is wrapped in asyncio.to_thread to avoid blocking.
 
     Args:
         question: The user's natural language question.
         top_k:    Number of document chunks to use as context.
+        user_id:  Restrict retrieval to this user's documents.
 
     Returns:
         The LLM-generated answer string.
     """
-    chain = build_rag_chain(top_k=top_k)
-    logger.info(f"Running RAG chain: '{question[:60]}...'")
+    chain = build_rag_chain(top_k=top_k, user_id=user_id)
+    logger.info(f"Running RAG chain (user={user_id}): '{question[:60]}...'")
     answer = await asyncio.to_thread(chain.invoke, question)
     return answer

@@ -22,6 +22,8 @@ export default function Sidebar({
   onSaveKey,
   savingKey,
   keyError,
+  user,
+  onLogout,
 }) {
   const [showDocs, setShowDocs] = useState(false);
   const [showKey, setShowKey] = useState(false);
@@ -160,6 +162,19 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar-footer">
+        {user && (
+          <div className="user-row">
+            <div className="user-avatar">
+              {(user.name || user.email || "?").charAt(0).toUpperCase()}
+            </div>
+            <span className="user-email" title={user.email}>
+              {user.name || user.email}
+            </span>
+            <button className="logout-btn" onClick={onLogout} title="Sign out">
+              ⏻
+            </button>
+          </div>
+        )}
         <span className="retention-note">Chats auto-delete after 90 days</span>
       </div>
     </aside>

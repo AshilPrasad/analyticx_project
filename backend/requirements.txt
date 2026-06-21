@@ -12,6 +12,10 @@ langchain-google-genai>=2.0.0     # LLM + embeddings (Gemini) — lightweight, n
 langchain-postgres>=0.0.12
 langchain-text-splitters>=0.3.0
 
+# ── Auth ───────────────────────────────────────────────────────────────────────
+PyJWT>=2.8.0
+bcrypt>=4.1.0
+
 # ── Database ───────────────────────────────────────────────────────────────────
 psycopg[binary]>=3.1.0    # required by langchain-postgres
 asyncpg>=0.29.0           # async SQLAlchemy driver

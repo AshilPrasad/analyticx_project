@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatView from "./components/ChatView";
+import AuthScreen from "./components/AuthScreen";
 import {
   checkHealth,
   listSessions,
@@ -13,10 +14,18 @@ import {
   deleteDocument,
   getConfig,
   setGeminiKey,
+  getMe,
+  getToken,
+  setToken,
+  clearToken,
+  setUnauthorizedHandler,
 } from "./api/client";
 import "./index.css";
 
 export default function App() {
+  const [authChecking, setAuthChecking] = useState(true);
+  const [user, setUser] = useState(null);
+
   const [apiStatus, setApiStatus] = useState("checking"); // checking | online | degraded | offline
   const [dbMessage, setDbMessage] = useState("");
 
@@ -44,44 +53,6 @@ export default function App() {
     }
   }, []);
 
-  const refreshSessions = useCallback(async () => {
-    try {
-      const res = await listSessions();
-      setSessions(res.data);
-      return res.data;
-    } catch {
-      return [];
-    }
-  }, []);
-
-  // Initial connection check + data load
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await checkHealth();
-        if (res.data?.database?.connected) {
-          setApiStatus("online");
-          setDbMessage("");
-          try {
-            const cfg = await getConfig();
-            setGeminiConfigured(cfg.data?.gemini_configured ?? false);
-          } catch {
-            setGeminiConfigured(false);
-          }
-          const list = await refreshSessions();
-          refreshDocuments();
-          if (list.length > 0) selectSession(list[0].id);
-        } else {
-          setApiStatus("degraded");
-          setDbMessage("PostgreSQL is not running on port 5532. Start the database to enable chat.");
-        }
-      } catch {
-        setApiStatus("offline");
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const selectSession = useCallback(async (id) => {
     setActiveId(id);
     setSidebarOpen(false);
@@ -93,7 +64,72 @@ export default function App() {
     }
   }, []);
 
-  const handleNewChat = useCallback(async () => {
+  // Load chat + document data once authenticated
+  const loadAppData = useCallback(async () => {
+    try {
+      const res = await checkHealth();
+      if (res.data?.database?.connected) {
+        setApiStatus("online");
+        setDbMessage("");
+        try {
+          const cfg = await getConfig();
+          setGeminiConfigured(cfg.data?.gemini_configured ?? false);
+        } catch {
+          setGeminiConfigured(false);
+        }
+        try {
+          const list = (await listSessions()).data;
+          setSessions(list);
+          if (list.length > 0) selectSession(list[0].id);
+        } catch {
+          setSessions([]);
+        }
+        refreshDocuments();
+      } else {
+        setApiStatus("degraded");
+        setDbMessage("PostgreSQL is not running on port 5532. Start the database to enable chat.");
+      }
+    } catch {
+      setApiStatus("offline");
+    }
+  }, [refreshDocuments, selectSession]);
+
+  const logout = useCallback(() => {
+    clearToken();
+    setUser(null);
+    setSessions([]);
+    setMessages([]);
+    setActiveId(null);
+    setDocuments([]);
+  }, []);
+
+  // Validate any existing session on startup
+  useEffect(() => {
+    setUnauthorizedHandler(() => setUser(null));
+    (async () => {
+      if (getToken()) {
+        try {
+          const me = (await getMe()).data;
+          setUser(me);
+          await loadAppData();
+        } catch {
+          clearToken();
+        }
+      }
+      setAuthChecking(false);
+    })();
+  }, [loadAppData]);
+
+  const handleAuthenticated = useCallback(
+    async (token, authedUser) => {
+      setToken(token);
+      setUser(authedUser);
+      await loadAppData();
+    },
+    [loadAppData]
+  );
+
+  const handleNewChat = useCallback(() => {
     setActiveId(null);
     setMessages([]);
     setSidebarOpen(false);
@@ -124,14 +160,11 @@ export default function App() {
       if (!question.trim() || sending || !dbAvailable) return;
       setSending(true);
 
-      // Optimistically show the user's message
       const optimistic = { id: `tmp-${Date.now()}`, role: "user", content: question };
       setMessages((m) => [...m, optimistic]);
 
       try {
         let sessionId = activeId;
-
-        // Lazily create a session on first message
         if (!sessionId) {
           const created = await createSession();
           sessionId = created.data.id;
@@ -205,6 +238,18 @@ export default function App() {
     }
   }, []);
 
+  if (authChecking) {
+    return (
+      <div className="boot-screen">
+        <div className="boot-logo">analytix</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen onAuthenticated={handleAuthenticated} />;
+  }
+
   return (
     <div className="app-shell">
       <Sidebar
@@ -223,6 +268,8 @@ export default function App() {
         onSaveKey={handleSaveKey}
         savingKey={savingKey}
         keyError={keyError}
+        user={user}
+        onLogout={logout}
       />
 
       {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
