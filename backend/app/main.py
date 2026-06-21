@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AI Q&A API",
-    description="RAG-powered Q&A: FastAPI · PostgreSQL/pgvector · Gemini embeddings · Groq (Llama 3)",
+    description="RAG-powered Q&A: FastAPI · PostgreSQL/pgvector · Google Gemini (LLM + embeddings)",
     version="1.0.0",
     lifespan=lifespan,
 )

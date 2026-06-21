@@ -6,12 +6,9 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:Welcome%402026@localhost:5532/chatbot"
 
-    # Groq (LLM — answer generation)
-    GROQ_API_KEY: str = ""
-    LLM_MODEL: str = "openai/gpt-oss-20b"
-
-    # Google Gemini (embeddings — document vectors)
+    # Google Gemini (LLM + embeddings — single provider for the whole RAG stack)
     GOOGLE_API_KEY: str = ""
+    LLM_MODEL: str = "gemini-2.5-flash"
     EMBEDDING_MODEL: str = "models/gemini-embedding-001"
     EMBEDDING_DIM: int = 768  # gemini-embedding-001 supports 768 / 1536 / 3072
 

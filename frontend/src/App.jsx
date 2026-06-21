@@ -80,7 +80,7 @@ export default function App() {
       {/* ── Hero Banner ── */}
       <div className="hero">
         <div className="hero-inner">
-          <p className="hero-tag">Powered by Llama 3 · pgvector · Gemini embeddings</p>
+          <p className="hero-tag">Powered by Gemini · pgvector · Gemini embeddings</p>
           <h2 className="hero-headline">
             Ask anything about your documents
           </h2>
@@ -109,7 +109,7 @@ export default function App() {
             </div>
             <div className="stat-divider" />
             <div className="stat">
-              <span className="stat-num">Llama 3</span>
+              <span className="stat-num">Gemini</span>
               <span className="stat-label">LLM Model</span>
             </div>
           </div>
@@ -165,8 +165,8 @@ export default function App() {
       {/* ── Footer ── */}
       <footer className="footer">
         <p>
-          Built with FastAPI · PostgreSQL · pgvector · Gemini embeddings ·
-          Groq (Llama 3) · React
+          Built with FastAPI · PostgreSQL · pgvector ·
+          Google Gemini (LLM + embeddings) · React
         </p>
       </footer>
     </div>

@@ -8,8 +8,7 @@ pypdf>=4.2.0
 # ── LangChain RAG stack ────────────────────────────────────────────────────────
 langchain>=0.3.0
 langchain-core>=0.3.0
-langchain-groq>=0.2.0              # LLM (Llama 3) — answer generation
-langchain-google-genai>=2.0.0     # embeddings (Gemini) — lightweight, no PyTorch
+langchain-google-genai>=2.0.0     # LLM + embeddings (Gemini) — lightweight, no PyTorch
 langchain-postgres>=0.0.12
 langchain-text-splitters>=0.3.0
 

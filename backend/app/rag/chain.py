@@ -15,7 +15,7 @@ What it does in plain English:
       Injects the retrieved chunks as context into a structured prompt
     │
     ▼
-  [3] LLM (llm.py — Groq/Llama 3)
+  [3] LLM (llm.py — Google Gemini)
       Reads the prompt and generates a grounded answer
     │
     ▼
@@ -80,7 +80,7 @@ def build_rag_chain(top_k: int = 5):
 
         {context: retriever | format_docs, question: passthrough}
             | RAG_PROMPT
-            | LLM (Llama 3 via Groq)
+            | LLM (Gemini)
             | StrOutputParser()   ← extracts plain string from LLM response
 
     Args:

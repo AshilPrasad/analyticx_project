@@ -14,7 +14,7 @@ export default function AnswerDisplay({ response }) {
       {/* Answer */}
       <div className="answer-bubble">
         <div className="answer-header">
-          <span className="model-badge">🤖 llama3-8b-8192 via Groq</span>
+          <span className="model-badge">🤖 {response.model || "Gemini"}</span>
         </div>
         <p className="answer-text">{response.answer}</p>
       </div>
