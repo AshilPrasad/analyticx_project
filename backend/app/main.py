@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.database import init_db
+from app.database import get_db_status, init_db
 from app.routes import document_router, qa_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
@@ -22,7 +22,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Run database setup once when the server starts."""
-    await init_db()
+    # In development we allow API startup without DB so local UI/docs can still load.
+    await init_db(raise_on_error=settings.APP_ENV.lower() != "development")
     yield
 
 
@@ -53,4 +54,9 @@ async def root():
 
 @app.get("/health", tags=["Health"])
 async def health():
-    return {"status": "healthy", "version": "1.0.0"}
+    db = get_db_status()
+    return {
+        "status": "healthy" if db["connected"] else "degraded",
+        "version": "1.0.0",
+        "database": db,
+    }

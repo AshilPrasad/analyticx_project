@@ -1,13 +1,24 @@
 import { useState, useCallback } from "react";
 import { uploadDocument, deleteDocument } from "../api/client";
 
-export default function DocumentUpload({ documents, onRefresh }) {
+function friendlyError(err) {
+  const detail = err.response?.data?.detail ?? "";
+  if (!detail) return "Upload failed. Please try again.";
+  // Strip raw Python exception class names from server error messages
+  if (detail.toLowerCase().includes("database unavailable")) {
+    return "Database is not connected. Start PostgreSQL and restart the backend.";
+  }
+  if (detail.length > 200) return detail.slice(0, 200) + "…";
+  return detail;
+}
+
+export default function DocumentUpload({ documents, onRefresh, dbAvailable = true }) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null);
 
   const handleUpload = useCallback(async (file) => {
-    if (!file) return;
+    if (!file || !dbAvailable) return;
     setUploading(true);
     setUploadStatus(null);
     try {
@@ -20,21 +31,22 @@ export default function DocumentUpload({ documents, onRefresh }) {
     } catch (err) {
       setUploadStatus({
         type: "error",
-        msg: `❌ ${err.response?.data?.detail || "Upload failed. Please try again."}`,
+        msg: `❌ ${friendlyError(err)}`,
       });
     } finally {
       setUploading(false);
     }
-  }, [onRefresh]);
+  }, [onRefresh, dbAvailable]);
 
   const onDrop = useCallback(
     (e) => {
       e.preventDefault();
       setIsDragging(false);
+      if (!dbAvailable) return;
       const file = e.dataTransfer.files[0];
       if (file) handleUpload(file);
     },
-    [handleUpload]
+    [handleUpload, dbAvailable]
   );
 
   const handleDelete = async (name) => {
@@ -53,40 +65,52 @@ export default function DocumentUpload({ documents, onRefresh }) {
         <span className="icon">📁</span> Knowledge Base
       </h2>
 
-      {/* Drop Zone */}
-      <div
-        id="drop-zone"
-        className={`drop-zone ${isDragging ? "dragging" : ""} ${uploading ? "uploading" : ""}`}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={onDrop}
-      >
-        <div className="drop-zone-content">
-          {uploading ? (
-            <>
-              <div className="spinner" />
-              <p>Ingesting document…</p>
-            </>
-          ) : (
-            <>
-              <div className="upload-icon">⬆️</div>
-              <p className="drop-label">Drag & drop a file here</p>
-              <p className="drop-sub">or</p>
-              <label className="btn btn-primary" htmlFor="file-input">
-                Browse Files
-              </label>
-              <input
-                id="file-input"
-                type="file"
-                accept=".txt,.pdf"
-                style={{ display: "none" }}
-                onChange={(e) => handleUpload(e.target.files[0])}
-              />
-              <p className="drop-hint">Supports .txt and .pdf · Max 10 MB</p>
-            </>
-          )}
+      {/* DB unavailable — show friendly notice instead of upload zone */}
+      {!dbAvailable ? (
+        <div className="db-unavailable-notice">
+          <div className="db-unavailable-icon">🗄️</div>
+          <p className="db-unavailable-title">Database not connected</p>
+          <p className="db-unavailable-desc">
+            Start PostgreSQL (port 5433) and restart the backend to enable document uploads and Q&amp;A.
+          </p>
+          <code className="db-unavailable-cmd">docker compose up -d db</code>
         </div>
-      </div>
+      ) : (
+        /* Drop Zone */
+        <div
+          id="drop-zone"
+          className={`drop-zone ${isDragging ? "dragging" : ""} ${uploading ? "uploading" : ""}`}
+          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={onDrop}
+        >
+          <div className="drop-zone-content">
+            {uploading ? (
+              <>
+                <div className="spinner" />
+                <p>Ingesting document…</p>
+              </>
+            ) : (
+              <>
+                <div className="upload-icon">⬆️</div>
+                <p className="drop-label">Drag & drop a file here</p>
+                <p className="drop-sub">or</p>
+                <label className="btn btn-primary" htmlFor="file-input">
+                  Browse Files
+                </label>
+                <input
+                  id="file-input"
+                  type="file"
+                  accept=".txt,.pdf"
+                  style={{ display: "none" }}
+                  onChange={(e) => handleUpload(e.target.files[0])}
+                />
+                <p className="drop-hint">Supports .txt and .pdf · Max 10 MB</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Status message */}
       {uploadStatus && (

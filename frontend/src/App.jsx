@@ -6,7 +6,8 @@ import "./index.css";
 
 export default function App() {
   const [documents, setDocuments] = useState([]);
-  const [apiStatus, setApiStatus] = useState("checking"); // 'checking' | 'online' | 'offline'
+  const [apiStatus, setApiStatus] = useState("checking"); // 'checking' | 'online' | 'degraded' | 'offline'
+  const [dbStatusMessage, setDbStatusMessage] = useState("");
   const [activeTab, setActiveTab] = useState("qa"); // 'qa' | 'docs'
 
   const fetchDocuments = useCallback(async () => {
@@ -21,11 +22,24 @@ export default function App() {
   useEffect(() => {
     const ping = async () => {
       try {
-        await checkHealth();
-        setApiStatus("online");
-        fetchDocuments();
+        const res = await checkHealth();
+        const dbConnected = res.data?.database?.connected === true;
+
+        if (dbConnected) {
+          setApiStatus("online");
+          setDbStatusMessage("");
+          fetchDocuments();
+        } else {
+          setApiStatus("degraded");
+          setDbStatusMessage(
+            res.data?.database?.message || "Database is not reachable. Start PostgreSQL to enable uploads and Q&A."
+          );
+          setDocuments([]);
+        }
       } catch {
         setApiStatus("offline");
+        setDbStatusMessage("");
+        setDocuments([]);
       }
     };
     ping();
@@ -49,6 +63,7 @@ export default function App() {
               <span className="status-label">
                 {apiStatus === "checking" && "Connecting…"}
                 {apiStatus === "online" && "API Online"}
+                {apiStatus === "degraded" && "API Online (DB Offline)"}
                 {apiStatus === "offline" && "API Offline"}
               </span>
             </div>
@@ -126,7 +141,13 @@ export default function App() {
           {apiStatus === "offline" ? (
             <div className="offline-banner">
               🔴 Cannot connect to the API at <code>http://localhost:8000</code>.
-              Make sure the backend is running: <code>uvicorn app.main:app --reload</code>
+              Make sure the backend is running: <code>python run.py</code>
+            </div>
+          ) : apiStatus === "degraded" ? (
+            <div className="degraded-banner">
+              🟠 Backend is running, but database is unavailable.
+              <br />
+              <code>{dbStatusMessage}</code>
             </div>
           ) : (
             <QuestionInput hasDocuments={documents.length > 0} />
@@ -135,7 +156,11 @@ export default function App() {
 
         {/* Right panel — Document manager */}
         <div className={`panel-right ${activeTab === "docs" ? "tab-active" : ""}`}>
-          <DocumentUpload documents={documents} onRefresh={fetchDocuments} />
+          <DocumentUpload
+            documents={documents}
+            onRefresh={fetchDocuments}
+            dbAvailable={apiStatus === "online"}
+          />
         </div>
       </main>
 

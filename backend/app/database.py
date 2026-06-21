@@ -11,12 +11,15 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import Column, Integer, String, DateTime, text
 from sqlalchemy.sql import func
 from app.config import settings
+from fastapi import HTTPException
 import logging
 
 logger = logging.getLogger(__name__)
 
 engine = create_async_engine(settings.DATABASE_URL, echo=False)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+_db_connected = False
+_db_error_message = "Database has not been initialised yet."
 
 
 class Base(DeclarativeBase):
@@ -35,6 +38,12 @@ class IngestedDocument(Base):
 
 async def get_db():
     """FastAPI dependency — yields an async DB session."""
+    if not _db_connected:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Database unavailable. {_db_error_message}",
+        )
+
     async with AsyncSessionLocal() as session:
         try:
             yield session
@@ -43,9 +52,28 @@ async def get_db():
             raise
 
 
-async def init_db():
+def get_db_status() -> dict[str, str | bool]:
+    """Expose database connectivity status for health checks."""
+    return {
+        "connected": _db_connected,
+        "message": "connected" if _db_connected else _db_error_message,
+    }
+
+
+async def init_db(*, raise_on_error: bool = True):
     """Enable pgvector extension and create metadata tables on startup."""
-    async with engine.begin() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database initialised.")
+    global _db_connected, _db_error_message
+
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            await conn.run_sync(Base.metadata.create_all)
+        _db_connected = True
+        _db_error_message = "connected"
+        logger.info("Database initialised.")
+    except Exception as exc:
+        _db_connected = False
+        _db_error_message = f"{exc.__class__.__name__}: {exc}"
+        logger.warning("Database initialisation failed: %s", _db_error_message)
+        if raise_on_error:
+            raise
