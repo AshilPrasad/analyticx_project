@@ -35,6 +35,13 @@ export const deleteSession = (id) => api.delete(`/api/chat/sessions/${id}`);
 export const sendMessage = (sessionId, question, top_k = 5) =>
   api.post(`/api/chat/sessions/${sessionId}/messages`, { question, top_k });
 
+// ── Config (API key) ──────────────────────────────────────────────────────────
+
+export const getConfig = () => api.get("/api/config/");
+
+export const setGeminiKey = (api_key) =>
+  api.post("/api/config/gemini-key", { api_key });
+
 // ── Health ────────────────────────────────────────────────────────────────────
 
 export const checkHealth = () => api.get("/health");

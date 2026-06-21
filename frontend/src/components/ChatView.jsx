@@ -14,6 +14,8 @@ export default function ChatView({
   dbMessage,
   hasDocuments,
   onOpenSidebar,
+  geminiConfigured,
+  onOpenSidebarForKey,
 }) {
   const [input, setInput] = useState("");
   const endRef = useRef(null);
@@ -36,7 +38,8 @@ export default function ChatView({
     }
   };
 
-  const disabled = apiStatus !== "online";
+  const needsKey = apiStatus === "online" && !geminiConfigured;
+  const disabled = apiStatus !== "online" || needsKey;
 
   return (
     <main className="chat-main">
@@ -59,6 +62,15 @@ export default function ChatView({
           <div className="state-banner warn">
             🟠 {dbMessage} <br />
             Run <code>docker compose up -d db</code>, then restart the backend.
+          </div>
+        )}
+        {needsKey && (
+          <div className="state-banner warn">
+            🔑 No Gemini API key set. Open the menu and add your key under{" "}
+            <strong>Gemini API Key</strong> to start chatting.{" "}
+            <button className="inline-link-btn" onClick={onOpenSidebarForKey}>
+              Add key
+            </button>
           </div>
         )}
 
@@ -119,7 +131,13 @@ export default function ChatView({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={disabled ? "Connect the database to start chatting…" : "Message analytix…"}
+          placeholder={
+            needsKey
+              ? "Add your Gemini API key to start chatting…"
+              : apiStatus !== "online"
+              ? "Connect the database to start chatting…"
+              : "Message analytix…"
+          }
           rows={1}
           disabled={disabled || sending}
         />

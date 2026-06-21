@@ -141,6 +141,34 @@ body {
 .kb-delete { border: none; background: transparent; cursor: pointer; font-size: 11px; opacity: 0.6; }
 .kb-delete:hover { opacity: 1; }
 
+/* API key field */
+.key-status { font-size: 11px; font-weight: 600; }
+.key-status.ok { color: var(--ok); }
+.key-status.missing { color: var(--warn); }
+.key-input {
+  width: 100%; padding: 9px 12px;
+  border: 1px solid var(--border-light); border-radius: var(--radius);
+  font-family: inherit; font-size: 12.5px; color: var(--text-primary);
+  background: var(--bg-app); outline: none;
+}
+.key-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.key-save {
+  width: 100%; padding: 9px; border: none; border-radius: var(--radius);
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 600;
+  font-family: inherit; cursor: pointer; transition: background var(--transition);
+}
+.key-save:hover:not(:disabled) { background: var(--accent-hover); }
+.key-save:disabled { opacity: 0.5; cursor: not-allowed; }
+.key-error { font-size: 11.5px; color: var(--danger); line-height: 1.4; }
+.key-hint.ok { font-size: 11.5px; color: var(--ok); }
+.key-link { font-size: 11.5px; color: var(--accent); text-decoration: none; }
+.key-link:hover { text-decoration: underline; }
+.inline-link-btn {
+  border: none; background: transparent; color: inherit;
+  font-weight: 700; text-decoration: underline; cursor: pointer;
+  font-family: inherit; font-size: inherit; padding: 0;
+}
+
 .sidebar-footer { padding: 6px 8px 0; border-top: 1px solid var(--border); }
 .retention-note { font-size: 11px; color: var(--text-muted); }
 

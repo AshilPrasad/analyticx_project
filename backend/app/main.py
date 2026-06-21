@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.chat_routes import chat_router
+from app.config_routes import config_router
 from app.database import ensure_db_connected, get_db_status, init_db, purge_expired_sessions
 from app.routes import document_router, qa_router
 
@@ -68,6 +69,7 @@ app.add_middleware(
 app.include_router(document_router)
 app.include_router(qa_router)
 app.include_router(chat_router)
+app.include_router(config_router)
 
 
 @app.get("/", tags=["Health"])

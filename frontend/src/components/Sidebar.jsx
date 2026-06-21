@@ -18,8 +18,14 @@ export default function Sidebar({
   onDeleteDoc,
   uploading,
   dbAvailable,
+  geminiConfigured,
+  onSaveKey,
+  savingKey,
+  keyError,
 }) {
   const [showDocs, setShowDocs] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+  const [keyInput, setKeyInput] = useState("");
 
   return (
     <aside className={`sidebar ${open ? "open" : ""}`}>
@@ -59,6 +65,50 @@ export default function Sidebar({
               </button>
             </div>
           ))
+        )}
+      </div>
+
+      {/* Gemini API Key */}
+      <div className="kb-section">
+        <button className="kb-toggle" onClick={() => setShowKey((v) => !v)}>
+          <span>
+            🔑 Gemini API Key{" "}
+            <span className={`key-status ${geminiConfigured ? "ok" : "missing"}`}>
+              {geminiConfigured ? "✓" : "• not set"}
+            </span>
+          </span>
+          <span>{showKey ? "▾" : "▸"}</span>
+        </button>
+
+        {showKey && (
+          <div className="kb-body">
+            <input
+              type="password"
+              className="key-input"
+              placeholder="Paste your Gemini API key"
+              value={keyInput}
+              onChange={(e) => setKeyInput(e.target.value)}
+            />
+            <button
+              className="key-save"
+              disabled={!keyInput.trim() || savingKey}
+              onClick={() => onSaveKey(keyInput)}
+            >
+              {savingKey ? "Validating…" : "Save key"}
+            </button>
+            {keyError && <p className="key-error">{keyError}</p>}
+            {geminiConfigured && !keyError && (
+              <p className="key-hint ok">Key is active.</p>
+            )}
+            <a
+              className="key-link"
+              href="https://aistudio.google.com/app/apikey"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Get a free key ↗
+            </a>
+          </div>
         )}
       </div>
 

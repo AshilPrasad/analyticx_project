@@ -11,6 +11,8 @@ import {
   listDocuments,
   uploadDocument,
   deleteDocument,
+  getConfig,
+  setGeminiKey,
 } from "./api/client";
 import "./index.css";
 
@@ -26,6 +28,10 @@ export default function App() {
   const [documents, setDocuments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const [geminiConfigured, setGeminiConfigured] = useState(true);
+  const [savingKey, setSavingKey] = useState(false);
+  const [keyError, setKeyError] = useState("");
 
   const dbAvailable = apiStatus === "online";
 
@@ -56,6 +62,12 @@ export default function App() {
         if (res.data?.database?.connected) {
           setApiStatus("online");
           setDbMessage("");
+          try {
+            const cfg = await getConfig();
+            setGeminiConfigured(cfg.data?.gemini_configured ?? false);
+          } catch {
+            setGeminiConfigured(false);
+          }
           const list = await refreshSessions();
           refreshDocuments();
           if (list.length > 0) selectSession(list[0].id);
@@ -179,6 +191,20 @@ export default function App() {
     [refreshDocuments]
   );
 
+  const handleSaveKey = useCallback(async (key) => {
+    if (!key.trim()) return;
+    setSavingKey(true);
+    setKeyError("");
+    try {
+      const res = await setGeminiKey(key.trim());
+      setGeminiConfigured(res.data?.gemini_configured ?? true);
+    } catch (err) {
+      setKeyError(err.response?.data?.detail || "Could not save the key. Please try again.");
+    } finally {
+      setSavingKey(false);
+    }
+  }, []);
+
   return (
     <div className="app-shell">
       <Sidebar
@@ -193,6 +219,10 @@ export default function App() {
         onDeleteDoc={handleDeleteDoc}
         uploading={uploading}
         dbAvailable={dbAvailable}
+        geminiConfigured={geminiConfigured}
+        onSaveKey={handleSaveKey}
+        savingKey={savingKey}
+        keyError={keyError}
       />
 
       {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
@@ -205,6 +235,8 @@ export default function App() {
         dbMessage={dbMessage}
         hasDocuments={documents.length > 0}
         onOpenSidebar={() => setSidebarOpen(true)}
+        geminiConfigured={geminiConfigured}
+        onOpenSidebarForKey={() => setSidebarOpen(true)}
       />
     </div>
   );
