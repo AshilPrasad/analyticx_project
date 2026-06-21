@@ -31,9 +31,7 @@ export default function App() {
           fetchDocuments();
         } else {
           setApiStatus("degraded");
-          setDbStatusMessage(
-            res.data?.database?.message || "Database is not reachable. Start PostgreSQL to enable uploads and Q&A."
-          );
+          setDbStatusMessage("PostgreSQL is not running on port 5433. Start the database to enable uploads and Q&A.");
           setDocuments([]);
         }
       } catch {
@@ -145,9 +143,9 @@ export default function App() {
             </div>
           ) : apiStatus === "degraded" ? (
             <div className="degraded-banner">
-              🟠 Backend is running, but database is unavailable.
-              <br />
-              <code>{dbStatusMessage}</code>
+              <p className="degraded-title">🟠 Database not connected</p>
+              <p className="degraded-desc">{dbStatusMessage}</p>
+              <p className="degraded-hint">Run: <code>docker compose up -d db</code>, then restart the backend.</p>
             </div>
           ) : (
             <QuestionInput hasDocuments={documents.length > 0} />
