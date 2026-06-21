@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { API_BASE } from "../api/client";
 
 const SUGGESTIONS = [
   "Summarise the key points of my documents.",
@@ -54,7 +55,7 @@ export default function ChatView({
       <div className="chat-scroll">
         {apiStatus === "offline" && (
           <div className="state-banner error">
-            🔴 Cannot reach the API at <code>http://localhost:8000</code>. Start the backend with{" "}
+            🔴 Cannot reach the API at <code>{API_BASE}</code>. Start the backend with{" "}
             <code>python run.py</code>.
           </div>
         )}

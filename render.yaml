@@ -1,0 +1,50 @@
+# analytix — Render Blueprint
+
+# Deploy: Render Dashboard → New → Blueprint → connect this repo.
+# You must set DATABASE_URL and GOOGLE_API_KEY manually after the first deploy
+# (or add them in the Render dashboard before going live).
+
+services:
+  # ── FastAPI backend ────────────────────────────────────────────────────────
+  - type: web
+    name: analytix-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: gemini-2.5-flash
+      - key: EMBEDDING_MODEL
+        value: models/gemini-embedding-001
+      - key: EMBEDDING_DIM
+        value: "768"
+      - key: CORS_ORIGINS
+        fromService:
+          type: web
+          name: analytix-web
+          envVarKey: RENDER_EXTERNAL_URL
+
+  # ── React frontend (static) ────────────────────────────────────────────────
+  - type: web
+    name: analytix-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    plan: free
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: analytix-api
+          envVarKey: RENDER_EXTERNAL_URL
