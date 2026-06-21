@@ -1,174 +1,211 @@
 import { useState, useEffect, useCallback } from "react";
-import DocumentUpload from "./components/DocumentUpload";
-import QuestionInput from "./components/QuestionInput";
-import { listDocuments, checkHealth } from "./api/client";
+import Sidebar from "./components/Sidebar";
+import ChatView from "./components/ChatView";
+import {
+  checkHealth,
+  listSessions,
+  createSession,
+  getSession,
+  deleteSession,
+  sendMessage,
+  listDocuments,
+  uploadDocument,
+  deleteDocument,
+} from "./api/client";
 import "./index.css";
 
 export default function App() {
-  const [documents, setDocuments] = useState([]);
-  const [apiStatus, setApiStatus] = useState("checking"); // 'checking' | 'online' | 'degraded' | 'offline'
-  const [dbStatusMessage, setDbStatusMessage] = useState("");
-  const [activeTab, setActiveTab] = useState("qa"); // 'qa' | 'docs'
+  const [apiStatus, setApiStatus] = useState("checking"); // checking | online | degraded | offline
+  const [dbMessage, setDbMessage] = useState("");
 
-  const fetchDocuments = useCallback(async () => {
+  const [sessions, setSessions] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [sending, setSending] = useState(false);
+
+  const [documents, setDocuments] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const dbAvailable = apiStatus === "online";
+
+  const refreshDocuments = useCallback(async () => {
     try {
       const res = await listDocuments();
       setDocuments(res.data);
     } catch {
-      // silently fail
+      /* ignore */
     }
   }, []);
 
+  const refreshSessions = useCallback(async () => {
+    try {
+      const res = await listSessions();
+      setSessions(res.data);
+      return res.data;
+    } catch {
+      return [];
+    }
+  }, []);
+
+  // Initial connection check + data load
   useEffect(() => {
-    const ping = async () => {
+    (async () => {
       try {
         const res = await checkHealth();
-        const dbConnected = res.data?.database?.connected === true;
-
-        if (dbConnected) {
+        if (res.data?.database?.connected) {
           setApiStatus("online");
-          setDbStatusMessage("");
-          fetchDocuments();
+          setDbMessage("");
+          const list = await refreshSessions();
+          refreshDocuments();
+          if (list.length > 0) selectSession(list[0].id);
         } else {
           setApiStatus("degraded");
-          setDbStatusMessage("PostgreSQL is not running on port 5532. Start the database to enable uploads and Q&A.");
-          setDocuments([]);
+          setDbMessage("PostgreSQL is not running on port 5532. Start the database to enable chat.");
         }
       } catch {
         setApiStatus("offline");
-        setDbStatusMessage("");
-        setDocuments([]);
       }
-    };
-    ping();
-  }, [fetchDocuments]);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const selectSession = useCallback(async (id) => {
+    setActiveId(id);
+    setSidebarOpen(false);
+    try {
+      const res = await getSession(id);
+      setMessages(res.data.messages || []);
+    } catch {
+      setMessages([]);
+    }
+  }, []);
+
+  const handleNewChat = useCallback(async () => {
+    setActiveId(null);
+    setMessages([]);
+    setSidebarOpen(false);
+  }, []);
+
+  const handleDeleteSession = useCallback(
+    async (id) => {
+      try {
+        await deleteSession(id);
+        const remaining = sessions.filter((s) => s.id !== id);
+        setSessions(remaining);
+        if (activeId === id) {
+          if (remaining.length > 0) selectSession(remaining[0].id);
+          else {
+            setActiveId(null);
+            setMessages([]);
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    },
+    [sessions, activeId, selectSession]
+  );
+
+  const handleSend = useCallback(
+    async (question) => {
+      if (!question.trim() || sending || !dbAvailable) return;
+      setSending(true);
+
+      // Optimistically show the user's message
+      const optimistic = { id: `tmp-${Date.now()}`, role: "user", content: question };
+      setMessages((m) => [...m, optimistic]);
+
+      try {
+        let sessionId = activeId;
+
+        // Lazily create a session on first message
+        if (!sessionId) {
+          const created = await createSession();
+          sessionId = created.data.id;
+          setActiveId(sessionId);
+          setSessions((s) => [created.data, ...s]);
+        }
+
+        const res = await sendMessage(sessionId, question);
+        const { title, message } = res.data;
+
+        setMessages((m) => [...m, message]);
+        setSessions((s) =>
+          s.map((sess) =>
+            sess.id === sessionId
+              ? { ...sess, title, updated_at: new Date().toISOString() }
+              : sess
+          )
+        );
+      } catch (err) {
+        const detail = err.response?.data?.detail || "Something went wrong. Please try again.";
+        setMessages((m) => [
+          ...m,
+          { id: `err-${Date.now()}`, role: "assistant", content: `⚠️ ${detail}`, error: true },
+        ]);
+      } finally {
+        setSending(false);
+      }
+    },
+    [activeId, sending, dbAvailable]
+  );
+
+  const handleUpload = useCallback(
+    async (file) => {
+      if (!file || !dbAvailable) return;
+      setUploading(true);
+      try {
+        await uploadDocument(file);
+        await refreshDocuments();
+      } catch {
+        /* surfaced via UI elsewhere */
+      } finally {
+        setUploading(false);
+      }
+    },
+    [dbAvailable, refreshDocuments]
+  );
+
+  const handleDeleteDoc = useCallback(
+    async (name) => {
+      try {
+        await deleteDocument(name);
+        await refreshDocuments();
+      } catch {
+        /* ignore */
+      }
+    },
+    [refreshDocuments]
+  );
 
   return (
-    <div className="app">
-      {/* ── Header ── */}
-      <header className="header">
-        <div className="header-inner">
-          <div className="logo">
-            <span className="logo-icon">🧠</span>
-            <div>
-            <h1 className="logo-title">analytix</h1>
-            <p className="logo-sub">RAG-powered document Q&amp;A</p>
-            </div>
-          </div>
-          <div className="header-right">
-            <div className={`status-dot ${apiStatus}`}>
-              <span className="dot" />
-              <span className="status-label">
-                {apiStatus === "checking" && "Connecting…"}
-                {apiStatus === "online" && "API Online"}
-                {apiStatus === "degraded" && "API Online (DB Offline)"}
-                {apiStatus === "offline" && "API Offline"}
-              </span>
-            </div>
-            <a
-              href="http://localhost:8000/docs"
-              target="_blank"
-              rel="noreferrer"
-              className="btn btn-ghost"
-            >
-              API Docs ↗
-            </a>
-          </div>
-        </div>
-      </header>
+    <div className="app-shell">
+      <Sidebar
+        open={sidebarOpen}
+        sessions={sessions}
+        activeId={activeId}
+        onSelect={selectSession}
+        onNewChat={handleNewChat}
+        onDeleteSession={handleDeleteSession}
+        documents={documents}
+        onUpload={handleUpload}
+        onDeleteDoc={handleDeleteDoc}
+        uploading={uploading}
+        dbAvailable={dbAvailable}
+      />
 
-      {/* ── Hero Banner ── */}
-      <div className="hero">
-        <div className="hero-inner">
-          <p className="hero-tag">Powered by Gemini · pgvector · Gemini embeddings</p>
-          <h2 className="hero-headline">
-            Ask anything about your documents
-          </h2>
-          <p className="hero-desc">
-            Upload PDFs or text files, then ask questions in plain English.
-            analytix retrieves the most relevant passages and generates precise answers.
-          </p>
+      {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
 
-          {/* Stats bar */}
-          <div className="stats-bar">
-            <div className="stat">
-              <span className="stat-num">{documents.length}</span>
-              <span className="stat-label">Documents</span>
-            </div>
-            <div className="stat-divider" />
-            <div className="stat">
-              <span className="stat-num">
-                {documents.reduce((a, d) => a + d.chunk_count, 0)}
-              </span>
-              <span className="stat-label">Chunks Indexed</span>
-            </div>
-            <div className="stat-divider" />
-            <div className="stat">
-              <span className="stat-num">768</span>
-              <span className="stat-label">Embedding Dims</span>
-            </div>
-            <div className="stat-divider" />
-            <div className="stat">
-              <span className="stat-num">Gemini</span>
-              <span className="stat-label">LLM Model</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Mobile tab switcher ── */}
-      <div className="tab-bar">
-        <button
-          className={`tab-btn ${activeTab === "qa" ? "active" : ""}`}
-          onClick={() => setActiveTab("qa")}
-        >
-          💬 Ask
-        </button>
-        <button
-          className={`tab-btn ${activeTab === "docs" ? "active" : ""}`}
-          onClick={() => setActiveTab("docs")}
-        >
-          📁 Documents {documents.length > 0 && `(${documents.length})`}
-        </button>
-      </div>
-
-      {/* ── Main layout ── */}
-      <main className="main-layout">
-        {/* Left panel — Q&A (primary) */}
-        <div className={`panel-left ${activeTab === "qa" ? "tab-active" : ""}`}>
-          {apiStatus === "offline" ? (
-            <div className="offline-banner">
-              🔴 Cannot connect to the API at <code>http://localhost:8000</code>.
-              Make sure the backend is running: <code>python run.py</code>
-            </div>
-          ) : apiStatus === "degraded" ? (
-            <div className="degraded-banner">
-              <p className="degraded-title">🟠 Database not connected</p>
-              <p className="degraded-desc">{dbStatusMessage}</p>
-              <p className="degraded-hint">Run: <code>docker compose up -d db</code>, then restart the backend.</p>
-            </div>
-          ) : (
-            <QuestionInput hasDocuments={documents.length > 0} />
-          )}
-        </div>
-
-        {/* Right panel — Document manager */}
-        <div className={`panel-right ${activeTab === "docs" ? "tab-active" : ""}`}>
-          <DocumentUpload
-            documents={documents}
-            onRefresh={fetchDocuments}
-            dbAvailable={apiStatus === "online"}
-          />
-        </div>
-      </main>
-
-      {/* ── Footer ── */}
-      <footer className="footer">
-        <p>
-          Built with FastAPI · PostgreSQL · pgvector ·
-          Google Gemini (LLM + embeddings) · React
-        </p>
-      </footer>
+      <ChatView
+        messages={messages}
+        onSend={handleSend}
+        sending={sending}
+        apiStatus={apiStatus}
+        dbMessage={dbMessage}
+        hasDocuments={documents.length > 0}
+        onOpenSidebar={() => setSidebarOpen(true)}
+      />
     </div>
   );
 }

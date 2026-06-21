@@ -22,10 +22,18 @@ export const listDocuments = () => api.get("/api/documents/");
 export const deleteDocument = (name) =>
   api.delete(`/api/documents/${encodeURIComponent(name)}`);
 
-// ── Q&A ───────────────────────────────────────────────────────────────────────
+// ── Chat sessions ─────────────────────────────────────────────────────────────
 
-export const askQuestion = (question, top_k = 5) =>
-  api.post("/api/qa/", { question, top_k });
+export const createSession = () => api.post("/api/chat/sessions");
+
+export const listSessions = () => api.get("/api/chat/sessions");
+
+export const getSession = (id) => api.get(`/api/chat/sessions/${id}`);
+
+export const deleteSession = (id) => api.delete(`/api/chat/sessions/${id}`);
+
+export const sendMessage = (sessionId, question, top_k = 5) =>
+  api.post(`/api/chat/sessions/${sessionId}/messages`, { question, top_k });
 
 // ── Health ────────────────────────────────────────────────────────────────────
 

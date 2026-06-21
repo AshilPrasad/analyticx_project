@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
 
+    # Chat history retention — sessions older than this are auto-deleted
+    CHAT_RETENTION_DAYS: int = 90
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
