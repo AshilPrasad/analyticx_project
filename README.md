@@ -25,9 +25,9 @@ npm run dev                   # http://localhost:5173
 
 ## Deploy to production
 
-See **[DEPLOY.md](DEPLOY.md)** for Render, Vercel, Neon/Supabase, and environment variable setup.
+See **[DEPLOY.md](DEPLOY.md)** for the full step-by-step Render guide (database + backend + frontend).
 
-One-click option: connect this repo to [Render Blueprint](https://render.com/docs/blueprint-spec) using [`render.yaml`](render.yaml).
+Quick path: push to GitHub → Render **New + Blueprint** → set `GOOGLE_API_KEY` → redeploy frontend.
 
 ## Features
 

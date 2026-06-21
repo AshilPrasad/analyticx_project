@@ -4,12 +4,27 @@ core/config.py — Application settings loaded from environment / .env.
 
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
+
+
+def _normalize_database_url(url: str) -> str:
+    """Accept Render's postgresql:// URL and convert for async SQLAlchemy."""
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+asyncpg://", 1)
+    return url
 
 
 class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:Welcome%402026@localhost:5532/chatbot"
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def normalize_database_url(cls, v: str) -> str:
+        return _normalize_database_url(v)
 
     # Google Gemini (LLM + embeddings — single provider for the whole RAG stack)
     GOOGLE_API_KEY: str = ""

@@ -1,8 +1,10 @@
 # analytix — Render Blueprint
+# Everything on Render: database + backend + frontend
 
-# Deploy: Render Dashboard → New → Blueprint → connect this repo.
-# You must set DATABASE_URL and GOOGLE_API_KEY manually after the first deploy
-# (or add them in the Render dashboard before going live).
+databases:
+  - name: analytix-db
+    plan: free
+    postgresMajorVersion: "16"
 
 services:
   # ── FastAPI backend ────────────────────────────────────────────────────────
@@ -19,7 +21,9 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: analytix-db
+          property: connectionString
       - key: GOOGLE_API_KEY
         sync: false
       - key: LLM_MODEL
